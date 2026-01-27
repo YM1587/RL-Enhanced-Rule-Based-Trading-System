@@ -7,6 +7,7 @@ class RiskConfig:
     max_position_size: float
     max_drawdown_limit: float
     max_daily_loss: float
+    kill_switch_drift_threshold: float
     allowed_sectors: list
 
 @dataclass

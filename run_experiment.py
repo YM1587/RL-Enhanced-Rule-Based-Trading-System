@@ -46,7 +46,15 @@ def main():
     strategy = EMACrossoverStrategy()
     risk_manager = RiskManager(risk_cfg)
     simulator = Simulator()
-    reward_func = RiskAdjustedReward(**reward_cfg) if 'type' in reward_cfg else None # Simplified unpacking
+    
+    if 'type' in reward_cfg:
+        reward_type = reward_cfg.pop('type') # Remove 'type' so kwargs match constructor
+        if reward_type == 'risk_adjusted':
+            reward_func = RiskAdjustedReward(**reward_cfg)
+        else:
+            reward_func = None # Or error
+    else:
+        reward_func = None
     
     # 4. Execution Mode
     if args.mode == "baseline":
