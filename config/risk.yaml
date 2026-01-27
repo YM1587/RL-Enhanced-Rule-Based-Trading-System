@@ -1,0 +1,6 @@
+# Risk Management Constraints
+max_position_size: 1.0  # 100% Equity
+max_drawdown_limit: 0.20 # 20% Hard stop
+max_daily_loss: 0.05
+kill_switch_drift_threshold: 0.15 # KL Divergence threshold to disable RL
+allowed_sectors: ["crypto", "forex"]

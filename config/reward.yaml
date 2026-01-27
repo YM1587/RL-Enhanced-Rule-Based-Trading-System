@@ -1,0 +1,7 @@
+# Reward Function Configuration
+type: "risk_adjusted"
+lambda_risk: 0.5   # Volatility penalty weight
+gamma_cost: 0.5    # Transaction cost weight multiplier
+drawdown_penalty: 2.0  # Penalty multiplier for new drawdown
+hold_penalty: 0.0001
+benchmark_relative: true
