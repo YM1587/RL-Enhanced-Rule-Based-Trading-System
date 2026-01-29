@@ -20,6 +20,9 @@ class Simulator:
         self.slippage_std = slippage_std 
         self.trades = []
 
+    def reset(self):
+        self.trades = []
+
     def execute_order(self, price: float, size: float, volatility: float = 0.0) -> Trade:
         """
         Simulates filling an order. 

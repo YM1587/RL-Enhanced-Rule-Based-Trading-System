@@ -61,10 +61,20 @@ def main():
     
     # 4. Execution Mode
     if args.mode == "baseline":
-        logger.info("Running Rule-Based Baseline...")
-        baseline = RuleBasedBaseline(strategy)
-        results = baseline.run(df_features)
-        logger.info(f"Baseline Results: Total Return {results['total_return']:.2%}, Final Equity {results['final_equity']:.2f}")
+        logger.info("Running Standardized Rule-Based Baseline...")
+        env = TradingEnv(df_features, strategy, reward_func, risk_manager, simulator, env_cfg)
+        
+        obs, _ = env.reset()
+        done = False
+        while not done:
+            # Mock Agent: Always follows the signal (Index 7) with Full Size (Action 3)
+            signal = obs[7]
+            action = 3 if signal > 0 else 0
+            obs, _, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
+            
+        ret = ((info['equity'] - env.initial_balance) / env.initial_balance) * 100
+        logger.info(f"Baseline Results: Total Return {ret:.2f}%, Final Equity {info['equity']:.2f}, Max DD {info['drawdown']:.2%}")
         
     elif args.mode == "train":
         logger.info("Setting up RL Environment for Training...")

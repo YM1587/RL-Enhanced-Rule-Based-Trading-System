@@ -57,7 +57,7 @@ class TradingEnv(gym.Env):
         current_data = self.df.iloc[self.current_step]
         
         # Base Strategy Signal
-        signal = self.strategy.generate_signal(window)
+        self.last_signal = self.strategy.generate_signal(window)
         
         # State Construction (10 features)
         obs = np.array([
@@ -68,7 +68,7 @@ class TradingEnv(gym.Env):
             current_data.get('efficiency_ratio', 0), # NEW
             current_data.get('vol_percentile', 0),   # NEW
             current_data.get('rsi', 50) / 100.0,     # NEW (Normalized)
-            signal,
+            self.last_signal,
             self.shares_held / (self.max_equity / current_data['Close']), # Normalized Pos
             (self._get_equity() - self.initial_balance) / self.initial_balance # Norm PnL
         ], dtype=np.float32)
@@ -147,7 +147,9 @@ class TradingEnv(gym.Env):
             account_pnl_pct=equity_return,
             drawdown_pct=drawdown_pct,
             is_in_position=(self.shares_held > 0),
-            trade_cost=trade_cost
+            trade_cost=trade_cost,
+            strategy_signal=self.last_signal,
+            current_action=action
         )
         
         info = {
