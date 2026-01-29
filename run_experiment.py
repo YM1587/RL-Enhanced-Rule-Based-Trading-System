@@ -37,7 +37,7 @@ def main():
 
     # 2. Data Pipeline
     logger.info("Initializing Data Pipeline...")
-    loader = DataLoader("dummy_path.csv") # Uses synthetic data for now
+    loader = DataLoader("Dataset/NASDAQ_100.csv") # Uses Real Data
     engineer = FeatureEngineer()
     df_raw = loader.df
     df_features = engineer.compute_all_features(df_raw)

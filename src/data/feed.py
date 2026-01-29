@@ -21,16 +21,40 @@ class DataLoader:
         self.df = self._load_data(csv_path)
         
     def _load_data(self, path: str) -> pd.DataFrame:
-        # TODO: Real CSV loading
-        # For now, generate synthetic data for testing
-        dates = pd.date_range("2023-01-01", periods=1000, freq="1h")
-        df = pd.DataFrame(index=dates)
-        df['Close'] = 100 * (1 + np.random.randn(1000).cumsum() * 0.01)
-        df['Open'] = df['Close'].shift(1).fillna(100)
-        df['High'] = df[['Open', 'Close']].max(axis=1) * 1.01
-        df['Low'] = df[['Open', 'Close']].min(axis=1) * 0.99
-        df['Volume'] = np.random.randint(100, 1000, 1000)
-        return df
+        if path == "dummy_path.csv":
+            # Generate synthetic data for testing
+            dates = pd.date_range("2023-01-01", periods=1000, freq="1h")
+            df = pd.DataFrame(index=dates)
+            df['Close'] = 100 * (1 + np.random.randn(1000).cumsum() * 0.01)
+            df['Open'] = df['Close'].shift(1).fillna(100)
+            df['High'] = df[['Open', 'Close']].max(axis=1) * 1.01
+            df['Low'] = df[['Open', 'Close']].min(axis=1) * 0.99
+            df['Volume'] = np.random.randint(100, 1000, 1000)
+            return df
+        
+        # Real CSV Loading
+        try:
+            df = pd.read_csv(path)
+            # Normalize Columns: date -> Date, close -> Close, etc.
+            df.rename(columns={
+                'date': 'Date', 'open': 'Open', 'high': 'High', 
+                'low': 'Low', 'close': 'Close', 'volume': 'Volume'
+            }, inplace=True)
+            
+            # Ensure Date index
+            if 'Date' in df.columns:
+                df['Date'] = pd.to_datetime(df['Date'])
+                df.set_index('Date', inplace=True)
+                df.sort_index(inplace=True)
+            
+            required = ['Open', 'High', 'Low', 'Close', 'Volume']
+            if not all(col in df.columns for col in required):
+                raise ValueError(f"CSV missing required columns: {required}")
+                
+            return df
+        except Exception as e:
+            self.logger.error(f"Failed to load data from {path}: {e}")
+            raise
 
     def get_window(self, current_time: pd.Timestamp, window_size: int) -> pd.DataFrame:
         """
