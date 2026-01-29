@@ -74,41 +74,58 @@ def main():
         model = AgentFactory.create_ppo(env, os.path.join(args.config_dir, "ppo.yaml"))
         
         logger.info("Starting Training...")
-        model.learn(total_timesteps=10000) # Short run for verification
+        model.learn(total_timesteps=100000) 
         model.save("ppo_trading_agent")
         logger.info("Training Complete. Model saved.")
         
     elif args.mode in ["eval", "evaluate"]:
-        env = TradingEnv(df_features, strategy, reward_func, risk_manager, simulator, env_cfg)
         model_path = "ppo_trading_agent"
         if not os.path.exists(model_path + ".zip"):
              logger.error("No trained model found. Run --mode train first.")
              return
 
         logger.info(f"Loading model from {model_path}...")
-        # Load model but do not re-wrap env yet, just use it for predictions
         model = AgentFactory.load_ppo(model_path) 
         
-        logger.info("Starting Evaluation Loop...")
-        obs, _ = env.reset()
-        done = False
-        
-        while not done:
-            action, _ = model.predict(obs, deterministic=True)
-            obs, reward, terminated, truncated, info = env.step(action)
-            done = terminated or truncated
-            
-        final_equity = info['equity']
-        initial_balance = env.initial_balance
-        pnl = final_equity - initial_balance
-        ret = (pnl / initial_balance) * 100
-        
-        logger.info("-" * 30)
-        logger.info("EVALUATION RESULTS")
-        logger.info("-" * 30)
-        logger.info(f"Final Equity: {final_equity:,.2f}")
-        logger.info(f"Total Return: {ret:.2f}%")
-        logger.info("-" * 30)
+        # Define Evaluation Segments
+        segments = [
+            ("Full Period", df_features.index.min(), df_features.index.max()),
+            ("Dotcom Crash", "2000-01-01", "2002-12-31"),
+            ("GFC Crash", "2008-01-01", "2009-12-31"),
+            ("Bull Run", "2013-01-01", "2014-12-31"),
+            ("Chop/Sideways", "2011-01-01", "2012-12-31"),
+            ("COVID Recovery", "2020-03-01", "2021-12-31")
+        ]
+
+        logger.info("Starting Segmented Evaluation...")
+        print(f"\n{'Regime':<15} | {'Return':<10} | {'Max DD':<10}")
+        print("-" * 45)
+
+        for name, start, end in segments:
+            # Slice data for the segment
+            try:
+                seg_df = df_features.loc[pd.to_datetime(start):pd.to_datetime(end)]
+                if len(seg_df) < 100:
+                    continue
+                
+                # Setup localized env for this segment
+                seg_env = TradingEnv(seg_df, strategy, reward_func, risk_manager, simulator, env_cfg)
+                
+                obs, _ = seg_env.reset()
+                done = False
+                while not done:
+                    action, _ = model.predict(obs, deterministic=True)
+                    obs, reward, terminated, truncated, info = seg_env.step(action)
+                    done = terminated or truncated
+                
+                ret = ((info['equity'] - seg_env.initial_balance) / seg_env.initial_balance) * 100
+                max_dd = info['drawdown'] * 100
+                
+                print(f"{name:<15} | {ret:>8.2f}% | {max_dd:>8.2f}%")
+            except Exception as e:
+                logger.warning(f"Could not run segment {name}: {e}")
+
+        print("-" * 45)
 
 if __name__ == "__main__":
     main()
