@@ -22,7 +22,7 @@ def load_config(path: str) -> Dict:
 def main():
     parser = argparse.ArgumentParser(description="RL-Enhanced Trading System Experiment Runner")
     parser.add_argument("--config_dir", type=str, default="config", help="Directory containing config yamls")
-    parser.add_argument("--mode", type=str, choices=["train", "eval", "baseline"], default="train", help="Execution mode")
+    parser.add_argument("--mode", type=str, choices=["train", "eval", "evaluate", "baseline"], default="train", help="Execution mode")
     args = parser.parse_args()
 
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -75,7 +75,7 @@ def main():
         model.save("ppo_trading_agent")
         logger.info("Training Complete. Model saved.")
         
-    elif args.mode == "eval":
+    elif args.mode in ["eval", "evaluate"]:
         logger.info("Evaluation Mode not yet fully implemented.")
 
 if __name__ == "__main__":
