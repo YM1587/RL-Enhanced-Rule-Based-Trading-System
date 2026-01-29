@@ -14,6 +14,7 @@ from src.execution.simulator import Simulator
 from src.env.trading_env import TradingEnv
 from src.agent.ppo_wrapper import AgentFactory
 from src.baselines.rule_only import RuleBasedBaseline
+from src.reward.safety_first import SafetyFirstReward # NEW
 
 def load_config(path: str) -> Dict:
     with open(path, 'r') as f:
@@ -51,6 +52,8 @@ def main():
         reward_type = reward_cfg.pop('type') # Remove 'type' so kwargs match constructor
         if reward_type == 'risk_adjusted':
             reward_func = RiskAdjustedReward(**reward_cfg)
+        elif reward_type == 'safety_first':
+            reward_func = SafetyFirstReward(**reward_cfg)
         else:
             reward_func = None # Or error
     else:

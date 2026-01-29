@@ -35,9 +35,8 @@ class TradingEnv(gym.Env):
         # Define Action Space: 0=FLAT, 1=LONG_SMALL, 2=LONG_MED, 3=LONG_FULL, 4=NO_OP
         self.action_space = spaces.Discrete(5)
         
-        # Define Observation Space: Returns, Vol, Signal, Position, PnL
-        # Normalize roughly -5 to 5
-        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(6,), dtype=np.float32)
+        # Define Observation Space: 10 dimensions for regime context
+        self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(10,), dtype=np.float32)
         
         self.reset()
         
@@ -60,11 +59,15 @@ class TradingEnv(gym.Env):
         # Base Strategy Signal
         signal = self.strategy.generate_signal(window)
         
-        # State Construction
+        # State Construction (10 features)
         obs = np.array([
             current_data.get('log_ret', 0),
             current_data.get('volatility', 0),
             current_data.get('ema_dist', 0),
+            current_data.get('ema_slope', 0),        # NEW
+            current_data.get('efficiency_ratio', 0), # NEW
+            current_data.get('vol_percentile', 0),   # NEW
+            current_data.get('rsi', 50) / 100.0,     # NEW (Normalized)
             signal,
             self.shares_held / (self.max_equity / current_data['Close']), # Normalized Pos
             (self._get_equity() - self.initial_balance) / self.initial_balance # Norm PnL

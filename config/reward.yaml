@@ -1,7 +1,6 @@
-# Reward Function Configuration
-type: "risk_adjusted"
-lambda_risk: 0.5   # Volatility penalty weight
-gamma_cost: 0.5    # Transaction cost weight multiplier
-drawdown_penalty: 2.0  # Penalty multiplier for new drawdown
-hold_penalty: 0.0001
-benchmark_relative: true
+# Reward Function Configuration (Research Grade)
+type: "safety_first"
+lambda_risk: 2.0      # Volatility/Drawdown penalty weight
+abstain_bonus: 0.1     # Reward for avoiding a bad rule-based signal
+miss_penalty: 0.05     # Penalty for missing a good rule-based signal
+hold_penalty: 0.001    # Penalty per timestep for being in a position
