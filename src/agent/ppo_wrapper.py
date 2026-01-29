@@ -24,3 +24,7 @@ class AgentFactory:
             seed=cfg['seed']
         )
         return model
+
+    @staticmethod
+    def load_ppo(path: str, env: gym.Env = None) -> PPO:
+        return PPO.load(path, env=env)

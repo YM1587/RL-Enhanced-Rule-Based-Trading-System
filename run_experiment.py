@@ -76,7 +76,36 @@ def main():
         logger.info("Training Complete. Model saved.")
         
     elif args.mode in ["eval", "evaluate"]:
-        logger.info("Evaluation Mode not yet fully implemented.")
+        env = TradingEnv(df_features, strategy, reward_func, risk_manager, simulator, env_cfg)
+        model_path = "ppo_trading_agent"
+        if not os.path.exists(model_path + ".zip"):
+             logger.error("No trained model found. Run --mode train first.")
+             return
+
+        logger.info(f"Loading model from {model_path}...")
+        # Load model but do not re-wrap env yet, just use it for predictions
+        model = AgentFactory.load_ppo(model_path) 
+        
+        logger.info("Starting Evaluation Loop...")
+        obs, _ = env.reset()
+        done = False
+        
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            obs, reward, terminated, truncated, info = env.step(action)
+            done = terminated or truncated
+            
+        final_equity = info['equity']
+        initial_balance = env.initial_balance
+        pnl = final_equity - initial_balance
+        ret = (pnl / initial_balance) * 100
+        
+        logger.info("-" * 30)
+        logger.info("EVALUATION RESULTS")
+        logger.info("-" * 30)
+        logger.info(f"Final Equity: {final_equity:,.2f}")
+        logger.info(f"Total Return: {ret:.2f}%")
+        logger.info("-" * 30)
 
 if __name__ == "__main__":
     main()
