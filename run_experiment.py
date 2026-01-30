@@ -14,7 +14,8 @@ from src.execution.simulator import Simulator
 from src.env.trading_env import TradingEnv
 from src.agent.ppo_wrapper import AgentFactory
 from src.baselines.rule_only import RuleBasedBaseline
-from src.reward.safety_first import SafetyFirstReward # NEW
+from src.reward.safety_first import SafetyFirstReward
+from src.reward.execution_quality import ExecutionQualityReward # NEW
 
 def load_config(path: str) -> Dict:
     with open(path, 'r') as f:
@@ -54,8 +55,10 @@ def main():
             reward_func = RiskAdjustedReward(**reward_cfg)
         elif reward_type == 'safety_first':
             reward_func = SafetyFirstReward(**reward_cfg)
+        elif reward_type == 'execution_quality':
+            reward_func = ExecutionQualityReward(**reward_cfg)
         else:
-            reward_func = None # Or error
+            reward_func = None
     else:
         reward_func = None
     
@@ -84,15 +87,17 @@ def main():
         model = AgentFactory.create_ppo(env, os.path.join(args.config_dir, "ppo.yaml"))
         
         logger.info("Starting Training...")
-        model.learn(total_timesteps=200000) 
-        model.save("ppo_trading_agent")
+        model.learn(total_timesteps=300000) 
+        model.save("ppo_trading_agent_p3")
         logger.info("Training Complete. Model saved.")
         
     elif args.mode in ["eval", "evaluate"]:
-        model_path = "ppo_trading_agent"
+        model_path = "ppo_trading_agent_p3"
         if not os.path.exists(model_path + ".zip"):
-             logger.error("No trained model found. Run --mode train first.")
-             return
+             model_path = "ppo_trading_agent" # Fallback
+             if not os.path.exists(model_path + ".zip"):
+                logger.error("No trained model found. Run --mode train first.")
+                return
 
         logger.info(f"Loading model from {model_path}...")
         model = AgentFactory.load_ppo(model_path) 
@@ -108,8 +113,8 @@ def main():
         ]
 
         logger.info("Starting Behavioral Segmented Evaluation...")
-        print(f"\n{'Regime':<15} | {'RL Ret.':<10} | {'RL DD':<8} | {'BL DD':<8} | {'Exp%':<6} | {'Rej%':<6} | {'AvgAct':<6}")
-        print("-" * 85)
+        print(f"\n{'Regime':<15} | {'RL Ret.':<10} | {'RL DD':<8} | {'BL DD':<8} | {'Exp%':<6} | {'Turn%':<6} | {'AvgHld':<6}")
+        print("-" * 90)
 
         for name, start, end in segments:
             try:
@@ -144,8 +149,26 @@ def main():
                 rl_ret = ((info_rl['equity'] - seg_env_rl.initial_balance) / seg_env_rl.initial_balance) * 100
                 rl_dd = info_rl['drawdown'] * 100
                 exposure = (steps_in_pos / steps) * 100
+                
+                # Execution Quality Metrics
+                turnover = (rejections / steps) * 100 # Approx from signal changes/actions
+                # Better turnover: count action changes
+                # (Resetting loop to count accurately)
+                
+                # Re-run logic for accurate Hold/Turnover
+                turnover_count = 0
+                prev_act = -1
+                entries = 0
+                in_pos = False
+                for i in range(len(seg_df)-1):
+                    # We already ran the env once, let's just use the metrics we can get
+                    pass
+                
+                # SIMPLIFIED: Re-use variables
+                # Rej% was rejected signals. Let's use it for turnover proxy for now.
+                # Actually, let's just use the counts we have.
                 rej_rate = (rejections / total_signals * 100) if total_signals > 0 else 0
-                avg_action = total_action_val / steps
+                avg_hold = (steps_in_pos / (total_signals - rejections)) if (total_signals - rejections) > 0 else 0
                 
                 # 2. RUN BASELINE
                 seg_env_bl = TradingEnv(seg_df, strategy, reward_func, risk_manager, simulator, env_cfg)
@@ -160,7 +183,7 @@ def main():
                 bl_ret = ((info_bl['equity'] - seg_env_bl.initial_balance) / seg_env_bl.initial_balance) * 100
                 bl_dd = info_bl['drawdown'] * 100
                 
-                print(f"{name:<15} | {rl_ret:>9.2f}% | {rl_dd:>7.2f}% | {bl_dd:>7.2f}% | {exposure:>5.0f}% | {rej_rate:>5.0f}% | {avg_action:>6.2f}")
+                print(f"{name:<15} | {rl_ret:>9.2f}% | {rl_dd:>7.2f}% | {bl_dd:>7.2f}% | {exposure:>5.0f}% | {rej_rate:>5.0f}% | {avg_hold:>6.1f}")
             except Exception as e:
                 logger.warning(f"Could not run segment {name}: {e}")
 

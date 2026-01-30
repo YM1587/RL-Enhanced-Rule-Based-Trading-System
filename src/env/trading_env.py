@@ -149,7 +149,9 @@ class TradingEnv(gym.Env):
             is_in_position=(self.shares_held > 0),
             trade_cost=trade_cost,
             strategy_signal=self.last_signal,
-            current_action=action
+            current_action=action,
+            efficiency_ratio=self.df.iloc[self.current_step-1].get('efficiency_ratio', 0.5),
+            vol_percentile=self.df.iloc[self.current_step-1].get('vol_percentile', 0.5)
         )
         
         info = {

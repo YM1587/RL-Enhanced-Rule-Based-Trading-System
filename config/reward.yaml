@@ -1,6 +1,8 @@
-# Reward Function Configuration (Research Grade)
-type: "safety_first"
-lambda_risk: 2.0      # Volatility/Drawdown penalty weight
-abstain_bonus: 0.1     # Reward for avoiding a bad rule-based signal
-miss_penalty: 0.05     # Penalty for missing a good rule-based signal
-hold_penalty: 0.001    # Penalty per timestep for being in a position
+# Reward Function Configuration (Phase 3: Execution Quality)
+type: "execution_quality"
+lambda_risk: 2.0
+abstain_bonus: 0.1
+miss_penalty: 0.1
+turnover_lambda: 0.05
+holding_bonus: 0.01
+compression_penalty: 0.05

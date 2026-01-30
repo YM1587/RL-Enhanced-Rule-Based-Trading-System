@@ -8,7 +8,7 @@ class BaseReward(ABC):
                   drawdown_pct: float, 
                   is_in_position: bool, 
                   trade_cost: float,
-                  benchmark_return: float = 0.0) -> float:
+                  **kwargs) -> float:
         """
         Calculates the scalar reward for the current step.
         """
