@@ -84,7 +84,7 @@ def main():
         model = AgentFactory.create_ppo(env, os.path.join(args.config_dir, "ppo.yaml"))
         
         logger.info("Starting Training...")
-        model.learn(total_timesteps=100000) 
+        model.learn(total_timesteps=200000) 
         model.save("ppo_trading_agent")
         logger.info("Training Complete. Model saved.")
         
@@ -107,31 +107,60 @@ def main():
             ("COVID Recovery", "2020-03-01", "2021-12-31")
         ]
 
-        logger.info("Starting Segmented Evaluation...")
-        print(f"\n{'Regime':<15} | {'Return':<10} | {'Max DD':<10}")
-        print("-" * 45)
+        logger.info("Starting Behavioral Segmented Evaluation...")
+        print(f"\n{'Regime':<15} | {'RL Ret.':<10} | {'RL DD':<8} | {'BL DD':<8} | {'Exp%':<6} | {'Rej%':<6} | {'AvgAct':<6}")
+        print("-" * 85)
 
         for name, start, end in segments:
-            # Slice data for the segment
             try:
                 seg_df = df_features.loc[pd.to_datetime(start):pd.to_datetime(end)]
-                if len(seg_df) < 100:
-                    continue
+                if len(seg_df) < 100: continue
                 
-                # Setup localized env for this segment
-                seg_env = TradingEnv(seg_df, strategy, reward_func, risk_manager, simulator, env_cfg)
-                
-                obs, _ = seg_env.reset()
+                # 1. RUN RL AGENT
+                seg_env_rl = TradingEnv(seg_df, strategy, reward_func, risk_manager, simulator, env_cfg)
+                obs, _ = seg_env_rl.reset()
                 done = False
+                
+                steps = 0
+                steps_in_pos = 0
+                rejections = 0
+                total_signals = 0
+                total_action_val = 0
+                
                 while not done:
                     action, _ = model.predict(obs, deterministic=True)
-                    obs, reward, terminated, truncated, info = seg_env.step(action)
+                    total_action_val += action
+                    
+                    signal = obs[7]
+                    if signal != 0:
+                        total_signals += 1
+                        if action in [0]: rejections += 1
+                    
+                    obs, _, terminated, truncated, info_rl = seg_env_rl.step(action)
                     done = terminated or truncated
+                    steps += 1
+                    if seg_env_rl.shares_held > 0: steps_in_pos += 1
                 
-                ret = ((info['equity'] - seg_env.initial_balance) / seg_env.initial_balance) * 100
-                max_dd = info['drawdown'] * 100
+                rl_ret = ((info_rl['equity'] - seg_env_rl.initial_balance) / seg_env_rl.initial_balance) * 100
+                rl_dd = info_rl['drawdown'] * 100
+                exposure = (steps_in_pos / steps) * 100
+                rej_rate = (rejections / total_signals * 100) if total_signals > 0 else 0
+                avg_action = total_action_val / steps
                 
-                print(f"{name:<15} | {ret:>8.2f}% | {max_dd:>8.2f}%")
+                # 2. RUN BASELINE
+                seg_env_bl = TradingEnv(seg_df, strategy, reward_func, risk_manager, simulator, env_cfg)
+                obs_bl, _ = seg_env_bl.reset()
+                done_bl = False
+                while not done_bl:
+                    signal_bl = obs_bl[7]
+                    action_bl = 3 if signal_bl > 0 else 0
+                    obs_bl, _, term_bl, trunc_bl, info_bl = seg_env_bl.step(action_bl)
+                    done_bl = term_bl or trunc_bl
+                
+                bl_ret = ((info_bl['equity'] - seg_env_bl.initial_balance) / seg_env_bl.initial_balance) * 100
+                bl_dd = info_bl['drawdown'] * 100
+                
+                print(f"{name:<15} | {rl_ret:>9.2f}% | {rl_dd:>7.2f}% | {bl_dd:>7.2f}% | {exposure:>5.0f}% | {rej_rate:>5.0f}% | {avg_action:>6.2f}")
             except Exception as e:
                 logger.warning(f"Could not run segment {name}: {e}")
 
