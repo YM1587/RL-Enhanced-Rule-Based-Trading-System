@@ -2,7 +2,7 @@ import pandas as pd
 from .base import BaseStrategy
 
 class EMACrossoverStrategy(BaseStrategy):
-    def __init__(self, short_window: int = 50, long_window: int = 200):
+    def __init__(self, short_window: int = 10, long_window: int = 50):
         self.short_window = short_window
         self.long_window = long_window
 
