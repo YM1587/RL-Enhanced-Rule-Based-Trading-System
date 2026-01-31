@@ -38,51 +38,54 @@ class ExecutionQualityReward(BaseReward):
         efficiency_ratio = kwargs.get('efficiency_ratio', 0.5)
         vol_percentile = kwargs.get('vol_percentile', 0.5)
         
-        # 1. Realized Trade Result (Discrete)
-        if is_in_position:
-            self.in_trade = True
-            self.trade_pnl += account_pnl_pct
-        else:
-            if self.in_trade:
-                # Trade Closed - Reward pure outcome
-                reward += np.tanh(self.trade_pnl * 15.0) 
-                self.in_trade = False
-                self.trade_pnl = 0.0
+        # 1. Continuous PnL Reward (Primary Driver)
+        # We need this to ensure the agent doesn't just 'sit' forever
+        reward += account_pnl_pct * self.lambda_risk
 
-        # 2. Strategy Alignment (Direction is Frozen)
+        # 2. Strategy Alignment (Directional Anchor)
         is_participating = current_action in [1, 2, 3] or (current_action == 4 and is_in_position)
         
         if strategy_signal > 0:
             if not is_participating:
-                reward -= self.miss_penalty
+                reward -= self.miss_penalty # Punish staying out when signal is BUY
         elif strategy_signal == 0:
             if is_participating:
-                reward -= 0.1 # General "Over-trading" penalty
+                reward -= self.miss_penalty * 2.0 # Penalty for staying in when signal is FLAT
             else:
                 reward += self.abstain_bonus
 
-        # 3. Turnover Control (SUPPRESS CHURN)
+        # 3. Turnover Control (The 'Execution Quality' Constraint)
         if current_action != self.last_action:
             reward -= self.turnover_lambda
         self.last_action = current_action
 
-        # 4. Asymmetric Holding (POSITION MANAGEMENT)
+        # 4. Asymmetric Holding (Position Management)
         if is_in_position:
-            # Reward holding winners in clean trends (High ER)
+            # Update internal trade PnL for logic
+            self.in_trade = True
+            self.trade_pnl += account_pnl_pct
+            
+            # Bonus for riding winners in clean trends
             if self.trade_pnl > 0.02 and efficiency_ratio > 0.6:
                 reward += self.holding_bonus
-            # Penalize holding loses in deteriorating trends
+            # Penalty for holding losers in chop
             elif self.trade_pnl < -0.01 and efficiency_ratio < 0.4:
                 reward -= self.holding_bonus
+        else:
+            if self.in_trade:
+                # Optional: Extra reward for successful harvest
+                if self.trade_pnl > 0:
+                    reward += self.holding_bonus * 5.0
+                self.in_trade = False
+                self.trade_pnl = 0.0
 
-        # 5. Exposure Compression (RISK FILTER)
-        # Penalize Full Size (Action 3) when Volatility is in top quartile
+        # 5. Exposure Compression (Risk Filter)
         if current_action == 3 and vol_percentile > 0.75:
             reward -= self.compression_penalty
 
         # 6. Safety Anchors
         reward -= self.lambda_risk * max(0, drawdown_pct - 0.05)
-        reward -= trade_cost * 5.0 # Cost is already a real penalty in balance, but here we bias against it
+        reward -= trade_cost * 10.0 # Heavier bias against high-cost churn
         
         return float(reward)
 

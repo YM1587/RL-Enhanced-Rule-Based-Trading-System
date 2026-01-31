@@ -1,8 +1,8 @@
 # Reward Function Configuration (Phase 3: Execution Quality)
 type: "execution_quality"
-lambda_risk: 2.0
+lambda_risk: 5.0
 abstain_bonus: 0.1
-miss_penalty: 0.1
-turnover_lambda: 0.05
-holding_bonus: 0.01
+miss_penalty: 0.2
+turnover_lambda: 0.01
+holding_bonus: 0.05
 compression_penalty: 0.05

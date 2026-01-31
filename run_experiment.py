@@ -88,16 +88,18 @@ def main():
         
         logger.info("Starting Training...")
         model.learn(total_timesteps=300000) 
-        model.save("ppo_trading_agent_p3")
+        model.save("ppo_trading_agent_p3_v2")
         logger.info("Training Complete. Model saved.")
         
     elif args.mode in ["eval", "evaluate"]:
-        model_path = "ppo_trading_agent_p3"
+        model_path = "ppo_trading_agent_p3_v2"
         if not os.path.exists(model_path + ".zip"):
-             model_path = "ppo_trading_agent" # Fallback
+             model_path = "ppo_trading_agent_p3" # Fallback to v1
              if not os.path.exists(model_path + ".zip"):
-                logger.error("No trained model found. Run --mode train first.")
-                return
+                 model_path = "ppo_trading_agent" # Fallback to Phase 2
+                 if not os.path.exists(model_path + ".zip"):
+                    logger.error("No trained model found. Run --mode train first.")
+                    return
 
         logger.info(f"Loading model from {model_path}...")
         model = AgentFactory.load_ppo(model_path) 
